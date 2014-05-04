@@ -3,6 +3,21 @@
 
 #include "SDL.h"
 
+FILE *logfile;
+
+void LogPrintf(char *s, ...)
+{
+    va_list args;
+
+    va_start(args, s);
+    vprintf(s, args);
+    va_end(args);
+
+    va_start(args, s);
+    vfprintf(logfile, s, args);
+    va_end(args);
+}
+
 void ProcessAxisMotion(SDL_Event *ev)
 {
     static int lastjoy = -1, lastaxis, lastdirection;
@@ -22,8 +37,8 @@ void ProcessAxisMotion(SDL_Event *ev)
         return;
     }
 
-    printf("%i: Axis %i pushed to extreme: %i\n",
-           ev->jaxis.which, ev->jaxis.axis, ev->jaxis.value);
+    LogPrintf("%i: Axis %i pushed to extreme: %i\n",
+              ev->jaxis.which, ev->jaxis.axis, ev->jaxis.value);
 
     lastjoy = ev->jaxis.which;
     lastaxis = ev->jaxis.axis;
@@ -32,8 +47,8 @@ void ProcessAxisMotion(SDL_Event *ev)
 
 void ProcessBallMotion(SDL_Event *ev)
 {
-    printf("%i: Ball %i motion: %i, %i\n",
-           ev->jball.which, ev->jball.ball, ev->jball.xrel, ev->jball.yrel);
+    LogPrintf("%i: Ball %i motion: %i, %i\n",
+              ev->jball.which, ev->jball.ball, ev->jball.xrel, ev->jball.yrel);
 }
 
 char *HatDirection(int value)
@@ -61,14 +76,15 @@ void ProcessHatMotion(SDL_Event *ev)
 
     if (dirstr != NULL)
     {
-        printf("%i: Hat %i moved to %s\n", ev->jhat.which, ev->jhat.hat,
-               dirstr);
+        LogPrintf("%i: Hat %i moved to %s\n", ev->jhat.which, ev->jhat.hat,
+                  dirstr);
     }
 }
 
 void ProcessButtonDown(SDL_Event *ev)
 {
-    printf("%i: Button %i pressed\n", ev->jbutton.which, ev->jbutton.button);
+    LogPrintf("%i: Button %i pressed\n",
+              ev->jbutton.which, ev->jbutton.button);
 }
 
 void StartJoysticks(void)
@@ -78,17 +94,17 @@ void StartJoysticks(void)
 
     // Open all joysticks.
 
-    printf("%i joysticks:\n", SDL_NumJoysticks());
+    LogPrintf("%i joysticks:\n", SDL_NumJoysticks());
 
     for (i = 0 ; i < SDL_NumJoysticks(); ++i)
     {
-        printf("\t#%i: '%s'\n", i, SDL_JoystickName(i));
+        LogPrintf("\t#%i: '%s'\n", i, SDL_JoystickName(i));
 
         js = SDL_JoystickOpen(i);
-        printf("\t\taxes: %i\n", SDL_JoystickNumAxes(js));
-        printf("\t\tbuttons: %i\n", SDL_JoystickNumButtons(js));
-        printf("\t\tballs: %i\n", SDL_JoystickNumBalls(js));
-        printf("\t\thats: %i\n", SDL_JoystickNumHats(js));
+        LogPrintf("\t\taxes: %i\n", SDL_JoystickNumAxes(js));
+        LogPrintf("\t\tbuttons: %i\n", SDL_JoystickNumButtons(js));
+        LogPrintf("\t\tballs: %i\n", SDL_JoystickNumBalls(js));
+        LogPrintf("\t\thats: %i\n", SDL_JoystickNumHats(js));
     }
 }
 
@@ -106,6 +122,8 @@ int main(int argc, char *argv[])
 
     SDL_SetVideoMode(400, 200, 0, 0);
     SDL_WM_SetCaption("Close this window to quit.", NULL);
+
+    logfile = fopen("joytest.log", "w");
 
     StartJoysticks();
 
@@ -145,6 +163,7 @@ int main(int argc, char *argv[])
 exitloop:
 
     SDL_Quit();
+    fclose(logfile);
 
     return 0;
 }
