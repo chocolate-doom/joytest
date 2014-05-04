@@ -61,7 +61,7 @@ void ProcessHatMotion(SDL_Event *ev)
 
     if (dirstr != NULL)
     {
-        printf("%i: Hat %i moved to %s", ev->jhat.which, ev->jhat.hat,
+        printf("%i: Hat %i moved to %s\n", ev->jhat.which, ev->jhat.hat,
                dirstr);
     }
 }
