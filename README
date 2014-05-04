@@ -1,0 +1,4 @@
+This is a simple joystick test program that uses LibSDL.
+The purpose is to allow users to gather data about their gamepads/joysticks
+so that suppot can be added into Chocolate Doom for them.
+
