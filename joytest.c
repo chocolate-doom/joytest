@@ -3,6 +3,7 @@
 
 #include "SDL.h"
 
+SDL_Joystick **joysticks;
 FILE *logfile;
 
 void LogPrintf(char *s, ...)
@@ -18,6 +19,21 @@ void LogPrintf(char *s, ...)
     va_end(args);
 }
 
+void DumpAxisStates(void)
+{
+    int js, axis;
+
+    for (js = 0; js < SDL_NumJoysticks(); ++js)
+    {
+        printf("%i: axis states: ", js);
+        for (axis = 0; axis < SDL_JoystickNumAxes(joysticks[js]); ++axis)
+        {
+            printf("% 7i", SDL_JoystickGetAxis(joysticks[js], axis));
+        }
+        printf("\n");
+    }
+}
+
 void ProcessAxisMotion(SDL_Event *ev)
 {
     static int lastjoy = -1, lastaxis, lastdirection;
@@ -31,8 +47,8 @@ void ProcessAxisMotion(SDL_Event *ev)
         return;
     }
 
-    // Only print a message when pushed to the extreme
-    if (abs(ev->jaxis.value) < 30000)
+    // Only print a message when pushed out of the dead zone.
+    if (abs(ev->jaxis.value) > (32768 / 3))
     {
         return;
     }
@@ -96,6 +112,8 @@ void StartJoysticks(void)
 
     LogPrintf("%i joysticks:\n", SDL_NumJoysticks());
 
+    joysticks = calloc(SDL_NumJoysticks(), sizeof(SDL_Joystick *));
+
     for (i = 0 ; i < SDL_NumJoysticks(); ++i)
     {
         LogPrintf("\t#%i: '%s'\n", i, SDL_JoystickName(i));
@@ -105,12 +123,21 @@ void StartJoysticks(void)
         LogPrintf("\t\tbuttons: %i\n", SDL_JoystickNumButtons(js));
         LogPrintf("\t\tballs: %i\n", SDL_JoystickNumBalls(js));
         LogPrintf("\t\thats: %i\n", SDL_JoystickNumHats(js));
+        joysticks[i] = js;
     }
 }
 
 int main(int argc, char *argv[])
 {
     SDL_Event ev;
+    int poll_axes;
+    int now, last_poll_time = 0;
+
+    // Normally we detect when a stick has been pushed in a particular
+    // direction by checking for extreme values, but sometimes this
+    // doesn't work. So allow the -pollaxes flag to specify that we
+    // should poll the state of axes once a second instead.
+    poll_axes = argc >= 2 && !strcmp(argv[1], "-pollaxes");
 
     SDL_Init(SDL_INIT_JOYSTICK|SDL_INIT_VIDEO);
 
@@ -129,6 +156,13 @@ int main(int argc, char *argv[])
 
     for (;;)
     {
+        now = SDL_GetTicks();
+        if (poll_axes && now - last_poll_time > 1000)
+        {
+            last_poll_time = now;
+            DumpAxisStates();
+        }
+
         SDL_PumpEvents();
         SDL_WaitEvent(&ev);
         switch (ev.type)
@@ -144,7 +178,10 @@ int main(int argc, char *argv[])
                 break;
 
             case SDL_JOYAXISMOTION:
-                ProcessAxisMotion(&ev);
+                if (!poll_axes)
+                {
+                    ProcessAxisMotion(&ev);
+                }
                 break;
 
             case SDL_JOYBALLMOTION:
